@@ -8,6 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import android.Manifest.permission
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
 import com.lazymohan.satopoc.composable.PrinterScreen
 import com.lazymohan.satopoc.manager.SatoPrinterManager
@@ -45,12 +47,53 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             SatoCL4NXPOCTheme {
+                val uiState by viewModel.uiState.collectAsState()
                 Surface(color = MaterialTheme.colorScheme.background) {
                     PrinterScreen(
-                        printerManager = printerManager,
-                        viewModel = viewModel
+                        uiState = uiState,
+                        handleEvents = ::handleEvents
                     )
                 }
+            }
+        }
+    }
+
+    private fun handleEvents(event: SatoPrinterEvents) {
+        when (event) {
+            is SatoPrinterEvents.ConnectPrinter -> {
+
+            }
+
+            SatoPrinterEvents.DisconnectPrinter -> {
+
+            }
+
+            SatoPrinterEvents.HideProgress -> {
+
+            }
+
+            SatoPrinterEvents.Print -> {
+
+            }
+
+            SatoPrinterEvents.SearchPrinters -> {
+
+            }
+
+            is SatoPrinterEvents.ShowMessage -> {
+
+            }
+
+            SatoPrinterEvents.ShowProgress -> {
+
+            }
+
+            is SatoPrinterEvents.UpdatePrinters -> {
+
+            }
+
+            is SatoPrinterEvents.UpdateStatus -> {
+
             }
         }
     }

@@ -3,6 +3,7 @@ package com.lazymohan.satopoc
 import android.app.Application
 import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sato.printer.Printer
@@ -18,136 +19,104 @@ class SatoPrinterViewModel(application: Application) : AndroidViewModel(applicat
     private val _uiState = MutableStateFlow(PrinterUiState())
     val uiState = _uiState.asStateFlow()
 
-    private var printer: Printer
-
-    private val handler = Handler(Looper.getMainLooper()) { msg ->
-        when (msg.what) {
-            Printer.MESSAGE_NETWORK_DEVICE_SET -> {
-                val found = msg.obj as? Set<String> ?: emptySet()
-                if (found.isNotEmpty()) {
-                    _uiState.update {
-                        it.copy(
-                            printers = found.toMutableList()
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            message = "No Network printers found"
-                        )
-                    }
-                }
-            }
-
-            Printer.MESSAGE_STATE_CHANGE -> {
-                when (msg.arg1) {
-                    Printer.STATE_CONNECTED -> _uiState.update {
-                        it.copy(
-                            isConnected = true,
-                            status = "Printer, Connected!"
-                        )
-                    }
-
-                    Printer.STATE_CONNECTING -> _uiState.update {
-                        it.copy(
-                            isConnected = false,
-                            status = "Printer, Connecting..."
-                        )
-                    }
-
-                    Printer.STATE_NONE -> _uiState.update {
-                        it.copy(
-                            isConnected = false,
-                            status = "Printer, Connection failed or disconnected!"
-                        )
-                    }
-                }
-            }
-        }
-        true
+    private lateinit var printer: Printer
+    private val handler = Handler(Looper.getMainLooper()) { handlePrinterMessage(it) }
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        updateState(message = "Error: ${throwable.message}")
+        throwable.printStackTrace()
     }
 
     init {
-        printer = Printer(application.applicationContext, handler, null)
-        val ceh = CoroutineExceptionHandler { _, throwable ->
-            throwable.printStackTrace()
-            _uiState.update {
-                it.copy(
-                    message = "Error: ${throwable.message}"
-                )
-            }
-        }
-        viewModelScope.launch(Dispatchers.IO + ceh) {
-            connect("192.168.1.2")
-            if (printer.isConnected) {
-                _uiState.update {
-                    it.copy(
-                        message = "Printer, Connected!"
-                    )
-                }
-            } else {
-                _uiState.update {
-                    it.copy(
-                        message = "Printer, Disconnected!"
-                    )
-                }
-            }
+        initializePrinter()
+    }
+
+    private fun initializePrinter() {
+        printer = Printer(getApplication(), handler, null)
+        printer.initializePrinter()
+        checkInitialConnectionStatus()
+    }
+
+    private fun checkInitialConnectionStatus() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val isConnected = printer.isConnected
+            updateState(
+                isConnected = isConnected,
+                status = if (isConnected) "Printer connected" else "Printer disconnected"
+            )
         }
     }
 
-    fun scanPrinters() {
-        val ceh = CoroutineExceptionHandler { _, throwable ->
-            throwable.printStackTrace()
-            _uiState.update {
-                it.copy(
-                    message = "Error: ${throwable.message}"
-                )
-            }
-        }
-        viewModelScope.launch(ceh) {
-            try {
-                withContext(Dispatchers.IO) {
-                    printer.findNetworkPrinters(5000) // Ensure this runs on a background thread
+    private fun handlePrinterMessage(msg: Message): Boolean {
+        return when (msg.what) {
+            Printer.MESSAGE_NETWORK_DEVICE_SET -> {
+                val foundPrinters = (msg.obj as? Set<String>)?.toList() ?: emptyList()
+                if (foundPrinters.isNotEmpty()) {
+                    updateState(printers = foundPrinters)
+                } else {
+                    updateState(message = "No network printers found")
                 }
-                _uiState.update {
-                    it.copy(
-                        message = "Scanning for printers..."
+                true
+            }
+            Printer.MESSAGE_STATE_CHANGE -> {
+                when (msg.arg1) {
+                    Printer.STATE_CONNECTED -> updateState(
+                        isConnected = true,
+                        message = "Printer connected successfully"
                     )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uiState.update {
-                    it.copy(
-                        message = "Error scanning printers: ${e.message}"
-                    )
-                }
-            }
-        }
-    }
-
-    fun connect(ip: String) {
-        val ceh = CoroutineExceptionHandler { _, throwable ->
-            throwable.printStackTrace()
-            _uiState.update {
-                it.copy(
-                    message = "Error: ${throwable.message}"
-                )
-            }
-        }
-        viewModelScope.launch(ceh) {
-            try {
-                withContext(Dispatchers.IO) {
-                    printer.connect(ip, 9100, 5000) // Ensure this runs on a background thread
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uiState.update {
-                    it.copy(
+                    Printer.STATE_CONNECTING -> updateState(message = "Connecting to printer...")
+                    Printer.STATE_NONE -> updateState(
                         isConnected = false,
-                        message = "Error connecting to printer: ${e.message}"
+                        message = "Connection failed or disconnected"
                     )
                 }
+                true
             }
+            else -> false
+        }
+    }
+
+    fun scanPrinters(timeout: Int = 10000) {
+        viewModelScope.launch(exceptionHandler) {
+            updateState(message = "Scanning for printers...")
+            try {
+                withContext(Dispatchers.IO) {
+                    printer.findNetworkPrinters(timeout)
+                }
+            } catch (e: Exception) {
+                updateState(message = "Scan failed: ${e.message}")
+            }
+        }
+    }
+
+    fun connect(ip: String, port: Int = 9100, timeout: Int = 5000) {
+        viewModelScope.launch(exceptionHandler) {
+            updateState(message = "Connecting to $ip...")
+            try {
+                withContext(Dispatchers.IO) {
+                    printer.connect(ip, port, timeout)
+                }
+            } catch (e: Exception) {
+                updateState(
+                    isConnected = false,
+                    message = "Connection failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    private fun updateState(
+        isConnected: Boolean = _uiState.value.isConnected,
+        printers: List<String> = _uiState.value.printers,
+        message: String? = null,
+        status: String? = null,
+    ) {
+        _uiState.update {
+            it.copy(
+                isConnected = isConnected,
+                printers = printers.toMutableList(),
+                message = message ?: it.message,
+                status = status.orEmpty()
+            )
         }
     }
 

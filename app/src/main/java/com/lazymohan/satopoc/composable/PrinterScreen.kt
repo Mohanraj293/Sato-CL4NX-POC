@@ -1,8 +1,8 @@
 package com.lazymohan.satopoc.composable
 
-import android.app.Application
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,28 +31,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lazymohan.satopoc.SatoPrinterViewModel
+import com.lazymohan.satopoc.PrinterUiState
+import com.lazymohan.satopoc.SatoPrinterEvents
 import com.lazymohan.satopoc.manager.SatoPrinterManager
+import com.lazymohan.satopoc.ui.theme.SatoCL4NXPOCTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrinterScreen(
-    printerManager: SatoPrinterManager,
     modifier: Modifier = Modifier,
-    viewModel: SatoPrinterViewModel
+    handleEvents: (SatoPrinterEvents) -> Unit,
+    uiState: PrinterUiState
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val printers by remember { derivedStateOf { viewModel.uiState.value.printers } }
+    val printers by remember { derivedStateOf { uiState.printers } }
     val snackBarHostState = remember { SnackbarHostState() }
 
     if (uiState.message?.isNotEmpty() == true) {
         LaunchedEffect(uiState.message) {
             snackBarHostState.showSnackbar(
-                message = uiState.message ?: "",
+                message = uiState.message,
                 duration = SnackbarDuration.Short
             )
         }
@@ -69,81 +68,93 @@ fun PrinterScreen(
             SnackbarHost(snackBarHostState)
         }
     ) {
-        Column(
-            modifier = Modifier
+        Box(
+            modifier = modifier
                 .fillMaxSize()
                 .padding(it)
         ) {
-            Text("Network Printers", fontSize = 24.sp, modifier = Modifier.padding(bottom = 8.dp))
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Network Printers",
+                    fontSize = 24.sp,
+                    modifier = modifier.padding(bottom = 8.dp)
+                )
 
-            Button(onClick = { viewModel.scanPrinters() }, modifier = Modifier.fillMaxWidth()) {
-                Text("Scan for Printers")
-            }
+                Button(
+                    onClick = { handleEvents(SatoPrinterEvents.SearchPrinters) },
+                    modifier = modifier.fillMaxWidth()
+                ) {
+                    Text("Scan for Printers")
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(uiState.status, fontSize = 24.sp, modifier = Modifier.padding(bottom = 8.dp))
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = modifier.height(16.dp))
+                Text(uiState.status, fontSize = 24.sp, modifier = modifier.padding(bottom = 8.dp))
+                Spacer(modifier = modifier.height(16.dp))
 
-            if (printers.isEmpty()) {
-                Text("No printers found.", color = Color.Gray)
-            } else {
-                LazyColumn {
-                    items(printers) { ip ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clickable { viewModel.connect(ip) },
-                            elevation = CardDefaults.cardElevation(4.dp)
-                        ) {
-                            Text(
-                                text = ip,
-                                modifier = Modifier.padding(16.dp),
-                                fontSize = 18.sp
-                            )
+                if (printers.isEmpty()) {
+                    Text("No printers found.", color = Color.Gray)
+                } else {
+                    LazyColumn {
+                        items(printers) { ip ->
+                            Card(
+                                modifier = modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable { handleEvents(SatoPrinterEvents.ConnectPrinter(ip)) },
+                                elevation = CardDefaults.cardElevation(4.dp)
+                            ) {
+                                Text(
+                                    text = ip,
+                                    modifier = modifier.padding(16.dp),
+                                    fontSize = 18.sp
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 
-@Composable
-fun PrintControls(printerManager: SatoPrinterManager) {
-    var textToPrint by remember { mutableStateOf("Test Print") }
+    @Composable
+    fun PrintControls(printerManager: SatoPrinterManager) {
+        var textToPrint by remember { mutableStateOf("Test Print") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedTextField(
-            value = textToPrint,
-            onValueChange = { textToPrint = it },
-            label = { Text("Text to print") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Button(
-            onClick = {
-                // Implement print functionality
-                printerManager.printText(textToPrint)
-            },
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Print Text")
-        }
+            OutlinedTextField(
+                value = textToPrint,
+                onValueChange = { textToPrint = it },
+                label = { Text("Text to print") },
+                modifier = modifier.fillMaxWidth()
+            )
 
-        Button(
-            onClick = {
-                // Example: Print a barcode
-                printerManager.printBarcode("123456789012")
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Print Barcode")
+            Button(
+                onClick = {
+                    // Implement print functionality
+                    printerManager.printText(textToPrint)
+                },
+                modifier = modifier.fillMaxWidth()
+            ) {
+                Text("Print Text")
+            }
+
+            Button(
+                onClick = {
+                    printerManager.printBarcode("123456789012")
+                },
+                modifier = modifier.fillMaxWidth()
+            ) {
+                Text("Print Barcode")
+            }
         }
     }
 }
@@ -151,13 +162,27 @@ fun PrintControls(printerManager: SatoPrinterManager) {
 @Preview
 @Composable
 private fun PreviewPrintScreen() {
-    PrinterScreen(
-        printerManager = SatoPrinterManager(
-            context = LocalContext.current,
-            onPrinterConnect = {},
-            onError = {}
-        ),
-        modifier = Modifier.fillMaxSize(),
-        viewModel = SatoPrinterViewModel(LocalContext.current.applicationContext as Application)
-    )
+    SatoCL4NXPOCTheme(true) {
+        PrinterScreen(
+            uiState = PrinterUiState(),
+            handleEvents = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PreviewPrintScreen1() {
+    SatoCL4NXPOCTheme(true) {
+        PrinterScreen(
+            uiState = PrinterUiState(
+                printers = listOf(
+                    "Printer - 01",
+                    "Printer - 02",
+                ),
+                status = "Connected",
+            ),
+            handleEvents = {}
+        )
+    }
 }
