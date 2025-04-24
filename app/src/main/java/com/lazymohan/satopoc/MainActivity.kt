@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
     private fun handleEvents(event: SatoPrinterEvents) {
         when (event) {
             is SatoPrinterEvents.ConnectPrinter -> {
-
+                viewModel.connect(event.ipAddress)
             }
 
             SatoPrinterEvents.DisconnectPrinter -> {
@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
             }
 
             SatoPrinterEvents.SearchPrinters -> {
-
+                viewModel.scanPrinters()
             }
 
             is SatoPrinterEvents.ShowMessage -> {
