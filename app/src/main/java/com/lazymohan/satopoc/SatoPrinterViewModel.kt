@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SatoPrinterViewModel(application: Application) : AndroidViewModel(application) {
+
+
     private val _uiState = MutableStateFlow(PrinterUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -31,9 +33,31 @@ class SatoPrinterViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun initializePrinter() {
-        printer = Printer(getApplication(), handler, null)
-        printer.initializePrinter()
-        checkInitialConnectionStatus()
+        try {
+            // First disconnect if already connected
+            if (::printer.isInitialized && printer.isConnected) {
+                printer.disconnect()
+            }
+
+            // Initialize printer with more detailed configuration
+            printer = Printer(getApplication(), handler, null).apply {
+                // Set printer type if needed (check your printer model)
+
+
+                initializePrinter()
+
+            }
+
+            println("Printer initialized successfully")
+            checkInitialConnectionStatus()
+        } catch (e: Exception) {
+            println("Printer initialization failed: ${e.message}")
+            e.printStackTrace()
+            updateState(
+                message = "Printer initialization failed: ${e.message}",
+                status = "Initialization Error"
+            )
+        }
     }
 
     private fun checkInitialConnectionStatus() {
@@ -57,12 +81,14 @@ class SatoPrinterViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 true
             }
+
             Printer.MESSAGE_STATE_CHANGE -> {
                 when (msg.arg1) {
                     Printer.STATE_CONNECTED -> updateState(
                         isConnected = true,
                         message = "Printer connected successfully"
                     )
+
                     Printer.STATE_CONNECTING -> updateState(message = "Connecting to printer...")
                     Printer.STATE_NONE -> updateState(
                         isConnected = false,
@@ -71,6 +97,7 @@ class SatoPrinterViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 true
             }
+
             else -> false
         }
     }
@@ -90,15 +117,41 @@ class SatoPrinterViewModel(application: Application) : AndroidViewModel(applicat
 
     fun connect(ip: String, port: Int = 9100, timeout: Int = 5000) {
         viewModelScope.launch(exceptionHandler) {
-            updateState(message = "Connecting to $ip...")
+            updateState(message = "Connecting to $ip:$port...")
             try {
                 withContext(Dispatchers.IO) {
+                    println("Attempting to connect to printer at $ip:$port with timeout $timeout")
+
+                    // Ensure printer is initialized
+                    if (!::printer.isInitialized) {
+                        initializePrinter()
+                    }
+
+                    // Disconnect if already connected
+                    if (printer.isConnected) {
+                        printer.disconnect()
+                        // Small delay to ensure clean disconnect
+                        kotlinx.coroutines.delay(500)
+                    }
+
+                    // Attempt connection
                     printer.connect(ip, port, timeout)
+
+                    // Verify connection
+                    if (!printer.isConnected) {
+                        throw Exception("Connection failed - printer reports not connected")
+                    }
                 }
             } catch (e: Exception) {
+                val errorMessage = "Connection failed: ${e.message}\n" +
+                        "IP: $ip\n" +
+                        "Port: $port\n" +
+                        "Timeout: $timeout\n" +
+                        "Stack trace: ${e.stackTraceToString()}"
+                println(errorMessage)
                 updateState(
                     isConnected = false,
-                    message = "Connection failed: ${e.message}"
+                    message = errorMessage
                 )
             }
         }

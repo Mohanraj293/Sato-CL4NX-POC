@@ -1,7 +1,6 @@
 package com.lazymohan.satopoc.composable
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -15,7 +14,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -26,18 +24,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lazymohan.satopoc.PrinterUiState
 import com.lazymohan.satopoc.SatoPrinterEvents
-import com.lazymohan.satopoc.manager.SatoPrinterManager
-import com.lazymohan.satopoc.ui.theme.SatoCL4NXPOCTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,71 +111,5 @@ fun PrinterScreen(
                 }
             }
         }
-    }
-
-    @Composable
-    fun PrintControls(printerManager: SatoPrinterManager) {
-        var textToPrint by remember { mutableStateOf("Test Print") }
-
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = textToPrint,
-                onValueChange = { textToPrint = it },
-                label = { Text("Text to print") },
-                modifier = modifier.fillMaxWidth()
-            )
-
-            Button(
-                onClick = {
-                    // Implement print functionality
-                    printerManager.printText(textToPrint)
-                },
-                modifier = modifier.fillMaxWidth()
-            ) {
-                Text("Print Text")
-            }
-
-            Button(
-                onClick = {
-                    printerManager.printBarcode("123456789012")
-                },
-                modifier = modifier.fillMaxWidth()
-            ) {
-                Text("Print Barcode")
-            }
-        }
-    }
-}
-
-@Preview
-@Composable
-private fun PreviewPrintScreen() {
-    SatoCL4NXPOCTheme(true) {
-        PrinterScreen(
-            uiState = PrinterUiState(),
-            handleEvents = {}
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun PreviewPrintScreen1() {
-    SatoCL4NXPOCTheme(true) {
-        PrinterScreen(
-            uiState = PrinterUiState(
-                printers = listOf(
-                    "Printer - 01",
-                    "Printer - 02",
-                ),
-                status = "Connected",
-            ),
-            handleEvents = {}
-        )
     }
 }
