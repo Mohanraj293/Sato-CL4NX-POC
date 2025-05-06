@@ -36,6 +36,7 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
 }
 
@@ -61,5 +62,6 @@ dependencies {
     implementation(libs.kotlin.coroutines.test)
 
     implementation(files("libs/Sato_PrinterSDK_V1.0.0.jar"))
+    implementation(files("libs/opencv_2.4.jar"))
     implementation(files("libs/android-support-v4.jar"))
 }
