@@ -35,8 +35,27 @@ class SatoCL4NXPrinterHelper(
                 val toastMsg = msg.data.getString("toast")
                 onStatus("Toast: $toastMsg")
             }
+            Printer.MESSAGE_NETWORK_DEVICE_SET -> {
+                if (msg.obj == null) {
+                    onStatus("No network devices found")
+                } else {
+                    val deviceList = msg.obj as Array<*>
+                    onStatus("Found ${deviceList.size} network devices")
+                    for (device in deviceList) {
+                        val deviceInfo = device.toString()
+                        onStatus("Device: $deviceInfo")
+                    }
+                }
+                val toastMsg = msg.data.getString("toast")
+                onStatus("Toast: $toastMsg")
+            }
         }
         true
+    }
+
+    fun getNetworkPrinters() {
+        printer  = Printer(context, handler, Looper.getMainLooper())
+        printer.findNetworkPrinters(5000)
     }
 
     fun connectAndPrint(ip: String, port: Int = 9100, timeout: Int = 10000) {

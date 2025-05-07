@@ -16,6 +16,9 @@ class MainActivity : ComponentActivity() {
         satoCL4NXPrinterHelper = SatoCL4NXPrinterHelper(this) { status ->
             println(status)
         }
+        binding.btnAvailPrinters.setOnClickListener {
+            satoCL4NXPrinterHelper.getNetworkPrinters()
+        }
         binding.btnConnect.setOnClickListener {
             satoCL4NXPrinterHelper.connectAndPrint("192.168.3.180", 9100, 10000)
         }
